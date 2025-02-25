@@ -51,27 +51,26 @@ if(input.action==="save"){
 ?>	<h1>Neuer Blog-Artikel</h1>
 <?
 		const savedArticle=blog.getSavedArticle();
-		if(savedArticle&&input.method==="post"&&input.action==="save") input.action="load";
-		if(savedArticle&&input.action!=="load"){
-?>	<p><span style=color:gold>INFO</span>: Artikel Zwischengespeichert! <a href="?view=create&action=load" onclick="window.allowLeave=true">Hier Laden</a>.</p>
+		//if(savedArticle&&input.method==="post"&&input.action==="save") input.action="load";
+		if(savedArticle&&input.action==="save"){
+?>	<p><span style=color:gold>INFO</span>: Artikel Zwischengespeichert!</p>
 <?
 		}
 ?>	<form id=form method=post enctype=multipart/form-data>
 		<input type=hidden name=view value=submit>
 		<input type=hidden name=action value=create>
-		<p>Titel: <input type=text name=title required autocomplete value="<?=input.action==='load'&&savedArticle?savedArticle.title||'':''?>"></p>
-		<p>Beschreibung: <input type=text name=description required autocomplete=off value="<?=input.action==='load'&&savedArticle?savedArticle.description||'':''?>"></p>
+		<p>Titel: <input type=text name=title required autocomplete value="<?=savedArticle.title||''?>"></p>
+		<p>Beschreibung: <input type=text name=description required autocomplete=off value="<?=savedArticle.description||''?>"></p>
 		<p>Sichtbarkeit: <select name=visibility required>
-			<option value=everyone<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='everyone'?' selected':''?>>Alle</option>
-			<option value=logined<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='logined'?' selected':''?>>Angemeldet</option>
-			<option value=rank-blog<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='rank-blog'?' selected':''?>>Blog-Rank</option>
-			<option value=rank-blog-extra<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='rank-blog-extra'?' selected':''?>>Blog-extra-Rank</option>
-			<option value=owner<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='owner'?' selected':''?>>Admins</option>
+			<option value=everyone<?=savedArticle.visibility==='everyone'?' selected':''?>>Alle</option>
+			<option value=logined<?=savedArticle.visibility==='logined'?' selected':''?>>Angemeldet</option>
+			<option value=rank-blog<?=savedArticle.visibility==='rank-blog'?' selected':''?>>Blog-Rank</option>
+			<option value=rank-blog-extra<?=savedArticle.visibility==='rank-blog-extra'?' selected':''?>>Blog-extra-Rank</option>
+			<option value=owner<?=savedArticle.visibility==='owner'?' selected':''?>>Admins</option>
 		</select></p>
-
-		<p>Dateien <?=input.action==='load'&&savedArticle?savedArticle.files.length:'Keine'?></p>
+		<p>Datei<?=savedArticle.files.length===1?'':'en'?> <?=savedArticle.files.length>0?savedArticle.files.length:'Keine'?></p>
 <?
-		if(input.action==="load"&&savedArticle&&savedArticle.files.length>0){
+		if(savedArticle.files.length>0){
 ?>		<ul>
 <?
 		for(let index=0; index<savedArticle.files.length; index+=1){
@@ -82,12 +81,11 @@ if(input.action==="save"){
 ?>		</ul>
 <?
 		}
-?>
-		<input type=file name=file>
-		<p><textarea name=articleText><?=input.action==="load"&&savedArticle?savedArticle.articleText||'':""?></textarea></p>
-		<input type=submit value="Artikel zwischenspeichern<?=savedArticle&&input.action!=='load'?' (überschreiben!)':''?>" onclick="document.getElementById('form').action.value='save';">
+?>		<input type=file name=file>
+		<p><textarea name=articleText><?=savedArticle.articleText||''?></textarea></p>
+		<input type=submit value="Artikel zwischenspeichern" title="Speichert auf Server" onclick="document.getElementById('form').action.value='save';">
 <?
-		if(input.action==="load"){
+		if(input.action==="load"||true){
 ?>		<script>
 			if(history.replaceState) history.replaceState(null,"","?view=create");
 			document.addEventListener("visibilitychange",event=>{
