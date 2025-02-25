@@ -51,14 +51,13 @@ if(input.action==="save"){
 ?>	<h1>Neuer Blog-Artikel</h1>
 <?
 		const savedArticle=blog.getSavedArticle();
-		//if(savedArticle&&input.method==="post"&&input.action==="save") input.action="load";
 		if(savedArticle&&input.action==="save"){
 ?>	<p><span style=color:gold>INFO</span>: Artikel Zwischengespeichert!</p>
 <?
 		}
 ?>	<form id=form method=post enctype=multipart/form-data>
-		<input type=hidden name=view value=submit>
-		<input type=hidden name=action value=create>
+		<input type=hidden name=view value=create>
+		<input type=hidden name=action value=save>
 		<p>Titel: <input type=text name=title required autocomplete value="<?=savedArticle.title||''?>"></p>
 		<p>Beschreibung: <input type=text name=description required autocomplete=off value="<?=savedArticle.description||''?>"></p>
 		<p>Sichtbarkeit: <select name=visibility required>
@@ -83,9 +82,12 @@ if(input.action==="save"){
 		}
 ?>		<input type=file name=file>
 		<p><textarea name=articleText><?=savedArticle.articleText||''?></textarea></p>
-		<input type=submit value="Artikel zwischenspeichern" title="Speichert auf Server" onclick="document.getElementById('form').action.value='save';">
+		<p>Aktionen: 
+			<input type=submit value="Artikel zwischenspeichern" title="Speichert auf Server" onclick="document.getElementById('form').action.value='save';">
+			<input type=submit value=Vorschau title="Zeigt eine vorschau des Artikels wie vorm ausdrucken eines Dokuments." onclick="document.getElementById('form').view.value='create-preview';">
+		</p>
 <?
-		if(input.action==="load"||true){
+		if(input.action==="load"||true){ // old if state i shoud remove that condition
 ?>		<script>
 			if(history.replaceState) history.replaceState(null,"","?view=create");
 			document.addEventListener("visibilitychange",event=>{
