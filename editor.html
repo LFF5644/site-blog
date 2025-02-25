@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--CREATED 23.02.2025 AT 09:45--><?
+const {importHead}=globals.functions;
+const blog=service_require("blog/blog");
+//const articles=blog.getArticles();
+
+if(input.action==="save"){
+	const article=blog.getArticleTemplate({
+		...blog.getSavedArticle()||{},
+		title: input.title||"",
+		description: input.description||"",
+		visibility: input.visibility||"everyone",
+		articleText: input.articleText||"",
+		lastEdit: Date.now(),
+	});
+	for(let index=0; index<article.files.length; index+=1){
+		const file=article.files[index];
+		const keepFile=input["file"+index]==="on";
+		if(!keepFile){
+			await blog.removeFileFromSavedArticle(file);
+			article.files=article.files.filter(item=>item!==file);
+		}
+	}
+	blog.setSavedArticle(article);
+	if(input.file.filename!==""&&!article.files.includes(input.file.filename)){
+		await blog.addFileToSavedArticle(input.file.filename,input.file.data);
+		delete input.file.data; // for debugging not crashing my browser because of the large buffer
+	}
+}
+
+?>
+<html>
+<head>
+	<?=importHead({
+		input,
+		tabs: 1,
+		title: "Blog-Artikel Erstellen und Bearbeiten",
+		botIndexAllow: false,
+	})?>
+</head>
+<body>
+<?
+	if(!input.view||input.view==="main"){
+?>	<h1>Blog-Artikel Erstellen oder Bearbeiten, Bitte auswählen!</h1>
+	<ul>
+		<li>Ich Möchte einen Artikel <a href="?view=create">Erstellen</a>.</li>
+		<li>Ich Möchte einen vorhandenen Artikel <a href="?view=edit">Bearbeiten</a>.</li>
+	</ul>
+<?
+	}else if(input.view==="create"){
+?>	<h1>Neuer Blog-Artikel</h1>
+<?
+		const savedArticle=blog.getSavedArticle();
+		if(savedArticle&&input.method==="post"&&input.action==="save") input.action="load";
+		if(savedArticle&&input.action!=="load"){
+?>	<p><span style=color:gold>INFO</span>: Artikel Zwischengespeichert! <a href="?view=create&action=load" onclick="window.allowLeave=true">Hier Laden</a>.</p>
+<?
+		}
+?>	<form id=form method=post enctype=multipart/form-data>
+		<input type=hidden name=view value=submit>
+		<input type=hidden name=action value=create>
+		<p>Titel: <input type=text name=title required autocomplete value="<?=input.action==='load'&&savedArticle?savedArticle.title||'':''?>"></p>
+		<p>Beschreibung: <input type=text name=description required autocomplete=off value="<?=input.action==='load'&&savedArticle?savedArticle.description||'':''?>"></p>
+		<p>Sichtbarkeit: <select name=visibility required>
+			<option value=everyone<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='everyone'?' selected':''?>>Alle</option>
+			<option value=logined<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='logined'?' selected':''?>>Angemeldet</option>
+			<option value=rank-blog<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='rank-blog'?' selected':''?>>Blog-Rank</option>
+			<option value=rank-blog-extra<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='rank-blog-extra'?' selected':''?>>Blog-extra-Rank</option>
+			<option value=owner<?=input.action==='load'&&savedArticle&&savedArticle.visibility==='owner'?' selected':''?>>Admins</option>
+		</select></p>
+
+		<p>Dateien <?=input.action==='load'&&savedArticle?savedArticle.files.length:'Keine'?></p>
+<?
+		if(input.action==="load"&&savedArticle&&savedArticle.files.length>0){
+?>		<ul>
+<?
+		for(let index=0; index<savedArticle.files.length; index+=1){
+			const name=savedArticle.files[index];
+?>			<li><span><input type=checkbox name=file<?=index?> checked> <?=name?></span></li>
+<?
+		}
+?>		</ul>
+<?
+		}
+?>
+		<input type=file name=file>
+		<p><textarea name=articleText><?=input.action==="load"&&savedArticle?savedArticle.articleText||'':""?></textarea></p>
+		<input type=submit value="Artikel zwischenspeichern<?=savedArticle&&input.action!=='load'?' (überschreiben!)':''?>" onclick="document.getElementById('form').action.value='save';">
+<?
+		if(input.action==="load"){
+?>		<script>
+			if(history.replaceState) history.replaceState(null,"","?view=create");
+			document.addEventListener("visibilitychange",event=>{
+				if(document.visibilityState!=="hidden"||!window.autosave) return;
+				var form=document.getElementById("form");
+				form.action.value="save";
+				form.view.value="create";
+				form.submit();
+			});
+		</script>
+<?
+		}
+?>	</form>
+<?
+	}
+	else if(input.view==="edit"){
+		// blog edit view
+	}
+	else if(input.view==="submit"){
+?>	<p>SUBMIT!!</p>
+<?
+	}
+
+	if(input.method==="post"){
+		delete input.body;
+?>	<p>METHOD POST INPUT</p>
+	<p>
+		<textarea><?=JSON.stringify(input,null,4)?></textarea>
+	</p>
+<?
+	}
+?></body>
+</html>
