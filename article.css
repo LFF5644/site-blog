@@ -1,0 +1,8 @@
+li.article {
+	margin-bottom: 8px;
+	margin-top: 8px;
+	display: flex;
+}
+li.article>img {
+	margin-left:10px;
+}

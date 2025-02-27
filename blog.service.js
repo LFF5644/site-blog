@@ -10,44 +10,44 @@ const {
 	writeJsonFileAsync,
 	writeFileAsync,
 	rmFileAsync,
+	renameAsync,
 	tofsStr,
 }=globals.functions;
 
 const getDateUpsideDown=(date=new Date(),sub=".")=> date.getFullYear()+sub+String(date.getMonth()+1).padStart(2,0)+sub+String(date.getDate()).padStart(2,0);
 const getTimeUpsideDown=(date=new Date,sub=":")=> String(date.getHours()).padStart(2,0)+sub+String(date.getMinutes()).padStart(2,0);
 
+const excludeTemplate=(object,template)=>Object.fromEntries(Object.entries(object).filter(item=>template[item[0]]!==item[1]));
+
 const loadBlogArticlesFile=async()=>{
 	log("Load: "+blogArticlesFile);
 	const articles=await readJsonFileAsync(blogArticlesFile);
+	log("loaded Articles: "+(articles?JSON.stringify(articles,null,"\t"):articles));
 	if(!articles) this.articles=[];
-	else this.articles=articles;
+	else this.articles=articles.map(this.getArticleTemplate);
 }
 const saveBlogArticlesFile=()=>{
-	if(this.articles.length===0){
+	const template=this.articleTemplate;
+	let articles=this.getArticles().map(item=>excludeTemplate(item,template));
+	if(articles.length===0){
 		log("dont save empty file: "+blogArticlesFile);
 		return rmFileAsync(blogArticlesFile);
 	}
 	else{
 		log("Save: "+blogArticlesFile);
-		return writeJsonFileAsync(blogArticlesFile,this.articles);
+		log("saved articles:"+JSON.stringify(articles,null,"\t"));
+		return writeJsonFileAsync(blogArticlesFile,articles);
 	}
 }
 
 const saveSavedArticleFile=async()=>{
-	const article=this.savedArticle;
-	if(JSON.stringify(article)===JSON.stringify(this.getArticleTemplate())){
-		log("dont save empty file: "+blogArticlesDir+"saved/article.json");
-		return rmFileAsync(blogArticlesDir+"saved/article.json");
-	}
-	else{
-		log("Save: "+blogArticlesDir+"saved/article.json");
-		await createDirAsync(blogArticlesDir+"saved");
-		await writeJsonFileAsync(blogArticlesDir+"saved/article.json",article);
-	}
+	log("Save: "+blogArticlesDir+"saved/article.json");
+	await createDirAsync(blogArticlesDir+"saved");
+	await writeJsonFileAsync(blogArticlesDir+"saved/article.json",excludeTemplate(this.savedArticle,this.articleTemplate));
 }
 const loadSavedArticleFile=async()=>{
 	log("Load: "+blogArticlesDir+"saved/article.json");
-	const article=await readJsonFileAsync(blogArticlesDir+"saved/article.json");
+	const article=this.getArticleTemplate(await readJsonFileAsync(blogArticlesDir+"saved/article.json")||{});
 	if(!article) this.savedArticle=this.getArticleTemplate();
 	else this.savedArticle=article;
 }
@@ -57,24 +57,41 @@ this.start=async()=>{
 	
 	await loadBlogArticlesFile();
 	await loadSavedArticleFile();
+
+	this.saveInterval=setInterval(this.save,1e3*20); // autosave all 20s
 }
 
-this.createArticle=async(article,articleText=null)=>{
+this.createArticle=async(article)=>{
+	log("create article...");
 	article=this.getArticleTemplate(article);
 	const articleCreatedDate=new Date(article.created);
 	if(!article.title||!article.description) throw new Error("blog article not have description or title, but its required!");
-	if(!articleText&&(!article.folder||!article.articleFile)) throw new Error("blog article is not given!");
+	if(!article.articleText&&(!article.folder||!article.articleFile)) throw new Error("blog article is not given!");
 
-	if(!article.folder){
-		article.folder=getDateUpsideDown(articleCreatedDate,"-")+"_"+getTimeUpsideDown(articleCreatedDate,"-");
-		await createDirAsync(blogArticlesDir+article.folder);
+	if(!article.id) article.id=this.articles.length+1;
+
+	if(!article.folder||article.folder==="saved"){
+		const newFolder=getDateUpsideDown(articleCreatedDate,"-")+"_"+getTimeUpsideDown(articleCreatedDate,"-");
+		await createDirAsync(blogArticlesDir+newFolder);
+		if(article.folder==="saved"){
+			for(const file of article.files){
+				log(`moving '${blogArticlesDir}': 'saved/${file}' => '${newFolder}/' ...`);
+				await renameAsync(blogArticlesDir+"saved/"+file,blogArticlesDir+newFolder+"/"+file);
+			}
+			log("moved "+article.files.length+" successfully!")
+		}
+		article.folder=newFolder;
 	}
 	if(!article.articleFile&&article.articleText){
 		article.articleFile=defaultBlogFileName;
-		await writeFileAsync(blogArticlesDir+article.folder+"/"+defaultBlogFileName,articleText);
+		await writeFileAsync(blogArticlesDir+article.folder+"/"+defaultBlogFileName,article.articleText);
+		log("written: "+blogArticlesDir+article.folder+"/"+defaultBlogFileName,article.articleText+" with "+article.articleText.length/1024+" KB");
+		delete article.articleText;
 	}
+	log("NEW ARTICLE CREATED: "+article.title+", files: "+article.files.length+", visibility: "+article.visibility);
 	this.articles.push(article);
 	this.saveRequired=true;
+	return article
 }
 this.editArticle=(article,articleText=null)=>{
 	article={
@@ -84,40 +101,46 @@ this.editArticle=(article,articleText=null)=>{
 	const articleIndex=this.articles.findIndex(item=>item.id===article.id);
 	if(articleIndex===-1) throw new Error("article not found");
 
-	log("edit Article (Attr) '"+article.title+"'");
+	log("edit Article '"+article.title+"'");
 	this.articles[articleIndex]=article;
 	this.saveRequired=true;
 
 	if(articleText){
-		log("edit Article (Text) '"+article.title+"',saving...");
+		log("edit ArticleText '"+article.title+"',saving...");
 		const file=blogArticlesDir+articles.folder+"/"+article.articleFile;
 		return writeFileAsync(file,articleText);
 	}
 }
 
 this.getArticles=()=>this.articles;
-this.hasArticle=id=> this.articles.some(item=>item.id===id);
+this.existArticle=id=> this.articles.some(item=>item.id===id);
 this.getArticle=id=> this.articles.find(item=>item.id===id);
-//this.getArticleByFolder=folder=> // später eine suche machen wo man suchen kann anhand von datums etc
+this.getArticleByFolder=folder=> this.articles.find(item=>item.folder===folder);
 this.getArticleText=id=>{
 	const article=this.articles.find(item=>item.id===id);
 	if(!article) throw new Error("article with id "+id+", dont exist!");
 	const file=blogArticlesDir+article.folder+"/"+article.articleFile;
 	return readFileAsync(file,"utf-8"); // returns promise object
 }
+this.articleTemplate={
+	id: undefined,
+	created: undefined,
+	lastEdit: undefined,
+	title: null,
+	description: null,
+	folder: null,
+	files:[],
+	articleFile: null,
+	visibility: "everyone",
+	//writtenByUser: "lff",
+};
 this.getArticleTemplate=(article={})=>{
 	const now=Date.now();
 	return {
+		...this.articleTemplate,
 		id: now,
 		created: now,
 		lastEdit: now,
-		title: null,
-		description: null,
-		folder: null,
-		files:[],
-		articleFile: null,
-		visibility: "everyone",
-		//writtenByUser: "lff",
 		...article,
 	};
 }
@@ -150,9 +173,11 @@ this.save=async required=>{
 		await saveBlogArticlesFile();
 		await saveSavedArticleFile();
 		this.saveRequired=false;
+		log("saved!");
 	}
 }
 
 this.stop=async()=>{
 	await this.save(true);
+	clearInterval(this.saveInterval);
 }

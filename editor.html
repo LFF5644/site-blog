@@ -5,13 +5,19 @@ const blog=service_require("blog/blog");
 //const articles=blog.getArticles();
 
 if(input.action==="save"){
+	const now=Date.now();
+	const lastArticle=blog.getSavedArticle()||{};
+	const lastEdit=input.articleText===lastArticle.articleText?lastArticle.lastEdit:now;
+	const created=(!lastArticle.articleText&&!lastArticle.description&&!lastArticle.title)?now:lastArticle.created;
 	const article=blog.getArticleTemplate({
-		...blog.getSavedArticle()||{},
+		...lastArticle,
+		id: 0,
 		title: input.title||"",
 		description: input.description||"",
 		visibility: input.visibility||"everyone",
 		articleText: input.articleText||"",
-		lastEdit: Date.now(),
+		lastEdit,
+		created,
 	});
 	for(let index=0; index<article.files.length; index+=1){
 		const file=article.files[index];
@@ -26,6 +32,25 @@ if(input.action==="save"){
 		await blog.addFileToSavedArticle(input.file.filename,input.file.data);
 		delete input.file.data; // for debugging not crashing my browser because of the large buffer
 	}
+}
+else if(input.action==="post-saved"){
+	const now=Date.now();
+	let article={
+		...blog.getSavedArticle(),
+		id: now,
+		folder: "saved",
+	};
+	if(!article.title||!article.description||!article.articleText){
+		const url="?err=article_requirements_missing&view=create";
+		response.setHeader("Location",url);
+		throw 302;
+	}
+	article=blog.createArticle(article);
+	blog.setSavedArticle(blog.getArticleTemplate({id:0,folder:"saved"}));
+
+	const url="/blog/article.html?id="+now;
+	response.setHeader("Location",url);
+	throw 302;
 }
 
 ?>
@@ -53,6 +78,28 @@ if(input.action==="save"){
 		const savedArticle=blog.getSavedArticle();
 		if(savedArticle&&input.action==="save"){
 ?>	<p><span style=color:gold>INFO</span>: Artikel Zwischengespeichert!</p>
+<?
+		}
+		if(input.err){
+			let error=input.err;
+			let message="";
+			let critical=0;
+			switch(error){
+				case "article_requirements_missing":
+					message="Es Fehlen Informationen, bitte ergenzen!";
+					break;
+				default:
+					message="Es ist ein Unbekannter fehler aufgetreten!";
+					error="unkown_error";
+					critical=2;
+					break;
+			}
+			let color="";
+			let text="";
+			if(critical===0){color="gold";text="INFO";}
+			else if(critical===1){color="orange";text="WARNING";}
+			else if(critical===2){color="red";text="ERROR";}
+?>	<p title=<?=error?>><span style=color:<?=color?>><?=text?></span>: <?=message?></p>
 <?
 		}
 ?>	<form id=form method=post enctype=multipart/form-data>
@@ -101,6 +148,36 @@ if(input.action==="save"){
 <?
 		}
 ?>	</form>
+<?
+	}
+	else if(input.view==="create-preview"){
+		const article=blog.getSavedArticle();
+		if(!article.title||!article.description){
+			const url="?err=article_requirements_missing&view=create";
+			response.setHeader("Location",url);
+			throw 302;
+		}
+		if(!article.articleText) article.articleText=await blog.getArticleText(article.id);
+?>	<script>
+		if(history.replaceState) history.replaceState(null,"","?view=create-preview");
+	</script>
+	<h1><a href=//lff.one>LFF.ONE</a>/<a href=/blog>BLOG</a></h1>
+	<h2><?=article.title?></h2>
+	<p><b>Erstellt</b>: <i><?=new Date(article.created).toLocaleString()?></i></p>
+	<h3 title=Beschreibung><?=article.description?></h3>
+	<br>
+	<div class=article><?=article.articleText?></div>
+	<br>
+	<p><i>Stand vom: <?=new Date(article.lastEdit).toLocaleString()?></i></p>
+	<hr>
+	<form method=put>
+		<input type=hidden name=action value=post-saved>
+		<input type=submit value=Veröffentlichen>
+	</form>
+	<form method=get>
+		<input type=hidden name=view value=create>
+		<input type=submit value=Bearbeiten>
+	</form>
 <?
 	}
 	else if(input.view==="edit"){
