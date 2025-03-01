@@ -6,3 +6,8 @@ li.article {
 li.article>img {
 	margin-left:10px;
 }
+
+/* Article it self*/
+img.media{
+	max-width: 100%;
+}

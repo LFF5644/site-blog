@@ -124,7 +124,7 @@ this.executeBlogArticleCode=async(id)=>{
 	const rawArticleText=await this.getArticleText(id);
 	let index=0;
 	let staticData=true;
-	let articleTextFunction="(async function(){let res='';";
+	let articleTextFunction="(async function(article,data,globals,log){let res='';";
 	while(index<rawArticleText.length){
 		const text=rawArticleText.substring(index);
 		if(staticData){ // now we in text chunk
@@ -170,7 +170,31 @@ this.executeBlogArticleCode=async(id)=>{
 		throw e;
 	}
 	try{
-		articleText=await articleFunction(article);
+		const media="/blog/get/"+article.id+"/";
+		const data=(type,...args)=>{
+			if(type==="img"||type==="image"){
+				const dataTemplate={
+					alt: null,
+					clickable: true,
+				}
+				let [src,data]=args;
+				data={...dataTemplate,...data};
+				let {clickable,alt}=data;
+
+				if(!alt) alt=src;
+				src=media+src;
+				src=src.includes(" ")||src.includes("=")?('"'+src+'"'):src;
+				alt=alt.includes(" ")||alt.includes("=")?('"'+alt+'"'):alt;
+				let result='';
+				result+="<p>";
+				if(clickable) result+=`<a target=_blank href=${src}>`
+				result+=`<img loading=lazy class=media src=${src}${data.alt?(' alt='+alt):''}>`;
+				if(clickable) result+=`</a>`;
+				result+="</p>";
+				return result;
+			}
+		}
+		articleText=await articleFunction(article,data,globals,a=>log_o("blog/"+article.folder+": "+a));
 	}
 	catch(e){
 		log("error executeing blog article text code: "+e);

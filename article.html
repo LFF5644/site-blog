@@ -32,6 +32,7 @@
 		input,
 		title: article?article.title+" - LFF.one":article===null?"Blog Artikel - LFF.one":"Artikel nicht gefunden",
 		tabs: 1,
+		//botIndexAllow: false, // disallow googel bots and co to visit and scan that
 		css: [
 			"/css/main.css",
 			"/blog/article.css",
@@ -55,7 +56,7 @@
 	else if(article===null){
 	const articles=blog.getArticles();
 ?>	<h1>Artikel <?=articles.length?></h1>
-	<ul class=articles>	
+	<ul class=articles>
 <?
 		for(const article of articles){
 ?>		<li class=article><a href=/blog/<?=article.folder?>><?=article.title?></a><img src=/files/img/info64.png height=16 align=bottom onclick="alert('Titel: <?=article.title?>\nBeschreibung: <?=article.description?>\nErstellt: <?=new Date(article.created).toLocaleString()?>\nZuletzt Bearbeitet: <?=new Date(article.lastEdit).toLocaleString()?>\nDateien: <?=article.files.length===0?"Keine":article.files.join('; ')?>\n')"></li>
