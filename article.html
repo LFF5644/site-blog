@@ -8,47 +8,57 @@
 
 	const article=(()=>{
 		if(input.i) return blog.getArticle(Number(input.i));
-		else if(input.f) return blog.getArticleByFolder(input.f);
+		else if(input.browserLocationAppended||input.f) return blog.getArticleByFolder(input.browserLocationAppended||input.f);
+		else return null;
 	})();
+
+	if(article){
+		if(!request.url.startsWith("/blog/"+article.folder)){
+			response.setHeader("Location","/blog/"+article.folder);
+			throw 302;
+		}
+	}
+	else{
+		if(request.url.startsWith("/blog/article.html")){
+			response.setHeader("Location","/blog");
+			throw 302;
+		}
+	}
 
 ?>
 <html>
 <head>
 	<?=importHead({
 		input,
-		title: article?article.title+" - LFF.one":(!input.i&&!input.f)?"Blog Artikel - LFF.one":"Artikel nicht gefunden",
+		title: article?article.title+" - LFF.one":article===null?"Blog Artikel - LFF.one":"Artikel nicht gefunden",
 		tabs: 1,
 		css: [
 			"/css/main.css",
-			"/blog/article.css"
+			"/blog/article.css",
 		],
 	})?>
 </head>
 <body>
 <?
-	if(!article&&(input.i||input.f)){
+	if(article===undefined){
 ?>	<h1>Blog-Artikel exestiert nicht!</h1>
 	<p>Der Artikel wurde nicht gefunden Tuht mir leid :(</p>
-	<p>Du kannst aber zur <a href="?view=articles">Blog-Artikel Übersicht</a> zurück.</p>
+	<p>Du kannst aber zur <a href=/blog>Blog-Artikel-Übersicht</a> zurück.</p>
 <?
 	}
 	else if(article){
 ?>	<h1 class=articleTitle><?=article.title?></h1>
 	<p class=articleDescription><?=article.description?></p>
-	<div class=articleText><?=await blog.getArticleText(article.id)?></div>
+	<div class=articleText><?=await blog.executeBlogArticleCode(article.id)?></div>
 <?
 	}
-	else if((!article&&!input.i&&!input.f)||input.view==="articles"){
-		if(input.view==="articles"){
-?>	<script>if(history.replaceState) history.replaceState(null,"","");</script>
-<?
-		}
+	else if(article===null){
 	const articles=blog.getArticles();
 ?>	<h1>Artikel <?=articles.length?></h1>
 	<ul class=articles>	
 <?
 		for(const article of articles){
-?>		<li class=article><a href="?f=<?=article.folder?>"><?=article.title?></a><img src=/files/img/info64.png height=16 align=bottom onclick="alert('Titel: <?=article.title?>\nBeschreibung: <?=article.description?>\nErstellt: <?=new Date(article.created).toLocaleString()?>\nZuletzt Bearbeitet: <?=new Date(article.lastEdit).toLocaleString()?>\nDateien: <?=article.files.length===0?"Keine":article.files.join('; ')?>\n')"></li>
+?>		<li class=article><a href=/blog/<?=article.folder?>><?=article.title?></a><img src=/files/img/info64.png height=16 align=bottom onclick="alert('Titel: <?=article.title?>\nBeschreibung: <?=article.description?>\nErstellt: <?=new Date(article.created).toLocaleString()?>\nZuletzt Bearbeitet: <?=new Date(article.lastEdit).toLocaleString()?>\nDateien: <?=article.files.length===0?"Keine":article.files.join('; ')?>\n')"></li>
 <?
 		}
 ?>	</ul>

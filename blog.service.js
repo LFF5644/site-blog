@@ -22,7 +22,6 @@ const excludeTemplate=(object,template)=>Object.fromEntries(Object.entries(objec
 const loadBlogArticlesFile=async()=>{
 	log("Load: "+blogArticlesFile);
 	const articles=await readJsonFileAsync(blogArticlesFile);
-	log("loaded Articles: "+(articles?JSON.stringify(articles,null,"\t"):articles));
 	if(!articles) this.articles=[];
 	else this.articles=articles.map(this.getArticleTemplate);
 }
@@ -35,7 +34,6 @@ const saveBlogArticlesFile=()=>{
 	}
 	else{
 		log("Save: "+blogArticlesFile);
-		log("saved articles:"+JSON.stringify(articles,null,"\t"));
 		return writeJsonFileAsync(blogArticlesFile,articles);
 	}
 }
@@ -120,7 +118,66 @@ this.getArticleText=id=>{
 	const article=this.articles.find(item=>item.id===id);
 	if(!article) throw new Error("article with id "+id+", dont exist!");
 	const file=blogArticlesDir+article.folder+"/"+article.articleFile;
-	return readFileAsync(file,"utf-8"); // returns promise object
+	return readFileAsync(file,"utf-8");
+}
+this.executeBlogArticleCode=async(id)=>{
+	const rawArticleText=await this.getArticleText(id);
+	let index=0;
+	let staticData=true;
+	let articleTextFunction="(async function(){let res='';";
+	while(index<rawArticleText.length){
+		const text=rawArticleText.substring(index);
+		if(staticData){ // now we in text chunk
+			const indexEnd=text.indexOf("<?");
+			if(indexEnd===-1){
+				articleTextFunction+="res+='"+string_codify(text)+"';";
+				index=rawArticleText.length;
+			}
+			else{
+				articleTextFunction+="res+='"+string_codify(text.substring(0,indexEnd))+"';";
+				staticData=false;
+				index+=indexEnd+2;
+			}
+		}
+		else if(!staticData){ // now we in code chunck
+			let dynamicValue=false;
+			if(text.substring(0,1)==="=") dynamicValue=true;
+			const indexEnd=text.indexOf("?>");
+			if(indexEnd===-1){
+				if(!dynamicValue) articleTextFunction+=string_codify(text);
+				else if(dynamicValue) articleTextFunction+="res+=''+"+text.substring(1)+";";
+				articleTextFunction+='res+="<hr>HEY YOU FORGOT ?&gt; at the end!");';
+				index=rawArticleText.length;
+				staticData=true;
+			}
+			else{
+				if(!dynamicValue) articleTextFunction+=text.substring(0,indexEnd);
+				else if(dynamicValue) articleTextFunction+="res+="+text.substring(1,indexEnd)+";";
+				index+=indexEnd+2;
+				staticData=true;
+			}
+		}
+	}
+	articleTextFunction+="return res;});";
+
+	let articleText='';
+	let articleFunction;
+	const article=this.getArticle(id);
+	try{
+		articleFunction=eval(articleTextFunction);
+	}catch(e){
+		log("error building function: "+e);
+		throw e;
+	}
+	try{
+		articleText=await articleFunction(article);
+	}
+	catch(e){
+		log("error executeing blog article text code: "+e);
+		throw e;
+	}
+
+	return articleText;
 }
 this.articleTemplate={
 	id: undefined,
@@ -160,10 +217,8 @@ this.addFileToSavedArticle=async(name,buffer)=>{
 this.removeFileFromSavedArticle=file=>{
 	log("DEL: "+blogArticlesDir+"saved/"+file);
 	if(!this.savedArticle.files.includes(file)) throw new Error("file "+file+" not exist!");
-	console.log(this.savedArticle.files);
 	this.savedArticle.files=this.savedArticle.files.filter(item=>item!==file);
 	this.saveRequired=true;
-	console.log(this.savedArticle.files);
 	return rmFileAsync(blogArticlesDir+"saved/"+file);
 }
 
@@ -178,6 +233,6 @@ this.save=async required=>{
 }
 
 this.stop=async()=>{
-	await this.save(true);
 	clearInterval(this.saveInterval);
+	await this.save(true);
 }
