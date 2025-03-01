@@ -16,7 +16,6 @@ const {
 
 const getDateUpsideDown=(date=new Date(),sub=".")=> date.getFullYear()+sub+String(date.getMonth()+1).padStart(2,0)+sub+String(date.getDate()).padStart(2,0);
 const getTimeUpsideDown=(date=new Date,sub=":")=> String(date.getHours()).padStart(2,0)+sub+String(date.getMinutes()).padStart(2,0);
-
 const excludeTemplate=(object,template)=>Object.fromEntries(Object.entries(object).filter(item=>template[item[0]]!==item[1]));
 
 const loadBlogArticlesFile=async()=>{
@@ -37,7 +36,6 @@ const saveBlogArticlesFile=()=>{
 		return writeJsonFileAsync(blogArticlesFile,articles);
 	}
 }
-
 const saveSavedArticleFile=async()=>{
 	log("Save: "+blogArticlesDir+"saved/article.json");
 	await createDirAsync(blogArticlesDir+"saved");
@@ -48,15 +46,6 @@ const loadSavedArticleFile=async()=>{
 	const article=this.getArticleTemplate(await readJsonFileAsync(blogArticlesDir+"saved/article.json")||{});
 	if(!article) this.savedArticle=this.getArticleTemplate();
 	else this.savedArticle=article;
-}
-
-this.start=async()=>{
-	await createDirAsync("data/blog"); // erstellen des "blog" ordners im daten speicher!
-	
-	await loadBlogArticlesFile();
-	await loadSavedArticleFile();
-
-	this.saveInterval=setInterval(this.save,1e3*20); // autosave all 20s
 }
 
 this.createArticle=async(article)=>{
@@ -91,27 +80,28 @@ this.createArticle=async(article)=>{
 	this.saveRequired=true;
 	return article
 }
-this.editArticle=(article,articleText=null)=>{
+this.editArticle=async(article)=>{
 	article={
-		...article,
+		...this.articleTemplate,
 		...this.getArticle(article.id),
+		...article,
 	};
-	const articleIndex=this.articles.findIndex(item=>item.id===article.id);
+	const articleIndex=this.getArticleIndex(article.id);
 	if(articleIndex===-1) throw new Error("article not found");
 
-	log("edit Article '"+article.title+"'");
+	if(article.articleText){
+		log("edit: Article Text...");
+		const file=blogArticlesDir+article.folder+"/"+article.articleFile;
+		await writeFileAsync(file,article.articleText);
+		delete article.articleText;
+	}
+	log("edit: Article MetaData");
 	this.articles[articleIndex]=article;
 	this.saveRequired=true;
-
-	if(articleText){
-		log("edit ArticleText '"+article.title+"',saving...");
-		const file=blogArticlesDir+articles.folder+"/"+article.articleFile;
-		return writeFileAsync(file,articleText);
-	}
 }
-
 this.getArticles=()=>this.articles;
 this.existArticle=id=> this.articles.some(item=>item.id===id);
+this.getArticleIndex=id=> this.articles.findIndex(item=>item.id===id);
 this.getArticle=id=> this.articles.find(item=>item.id===id);
 this.getArticleByFolder=folder=> this.articles.find(item=>item.folder===folder);
 this.getArticleText=id=>{
@@ -238,14 +228,50 @@ this.addFileToSavedArticle=async(name,buffer)=>{
 	this.savedArticle.files.push(name);
 	this.saveRequired=true;
 }
-this.removeFileFromSavedArticle=file=>{
+this.removeFileFromSavedArticle=async file=>{
 	log("DEL: "+blogArticlesDir+"saved/"+file);
 	if(!this.savedArticle.files.includes(file)) throw new Error("file "+file+" not exist!");
 	this.savedArticle.files=this.savedArticle.files.filter(item=>item!==file);
 	this.saveRequired=true;
-	return rmFileAsync(blogArticlesDir+"saved/"+file);
+	await rmFileAsync(blogArticlesDir+"saved/"+file);
+	return this.savedArticle.files;
+}
+this.removeFileFromArticle=async(id,file)=>{
+	const index=this.getArticleIndex(id);
+	if(index===-1) throw new Error("article id not found!");
+	if(!this.articles[index].files.includes(file)) throw new Error("file "+file+" not exist!");
+	log("DEL: "+blogArticlesDir+this.articles[index].folder+"/"+file);
+	this.articles[index].files=this.articles[index].files.filter(item=>item!==file);
+	this.saveRequired=true;
+	await rmFileAsync(blogArticlesDir+this.articles[index].folder+"/"+file);
+	return this.articles[index].files;
+}
+this.addFileToArticle=async(id,name,buffer)=>{
+	const index=this.getArticleIndex(id);
+	const article=this.getArticle(id);
+	if(!article||index===-1) throw new Error("id not found!");
+	log("Upload: "+blogArticlesDir+article.folder+"/"+name);
+	if(article.files.includes(name)) throw new Error("file already exists!");
+	await createDirAsync(blogArticlesDir+article.folder);
+	await writeFileAsync(blogArticlesDir+article.folder+"/"+name,buffer);
+	article.files.push(name);
+	this.articles[index]=article;
+	this.saveRequired=true;
+	return article.files;
 }
 
+this.start=async()=>{
+	this.articles=[];
+	this.savedArticle={};
+	this.articlesFunctionCache=[];
+
+	await createDirAsync("data/blog"); // erstellen des "blog" ordners im daten speicher!
+	
+	await loadBlogArticlesFile();
+	await loadSavedArticleFile();
+
+	this.saveInterval=setInterval(this.save,1e3*20); // autosave all 20s
+}
 this.save=async required=>{
 	if(this.saveRequired===true||required===true){
 		log("saving "+this.articles.length+" articles to file.");
@@ -255,7 +281,6 @@ this.save=async required=>{
 		log("saved!");
 	}
 }
-
 this.stop=async()=>{
 	clearInterval(this.saveInterval);
 	await this.save(true);

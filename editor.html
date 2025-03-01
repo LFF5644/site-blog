@@ -1,17 +1,16 @@
-<!DOCTYPE html>
-<!--CREATED 23.02.2025 AT 09:45--><?
+<?
 const {importHead}=globals.functions;
 const blog=service_require("blog/blog");
-//const articles=blog.getArticles();
 
+if(input.id==="saved") delete input.id;
+else if(input.id) input.id=Number(input.id);
 if(input.action==="save"){
 	const now=Date.now();
-	const lastArticle=blog.getSavedArticle()||{};
+	const lastArticle=input.id?(blog.getArticle(input.id)||{}):(blog.getSavedArticle()||{});
 	const lastEdit=input.articleText===lastArticle.articleText?lastArticle.lastEdit:now;
 	const created=(!lastArticle.articleText&&!lastArticle.description&&!lastArticle.title)?now:lastArticle.created;
 	const article=blog.getArticleTemplate({
 		...lastArticle,
-		id: 0,
 		title: input.title||"",
 		description: input.description||"",
 		visibility: input.visibility||"everyone",
@@ -32,28 +31,62 @@ if(input.action==="save"){
 		await blog.addFileToSavedArticle(input.file.filename,input.file.data);
 		delete input.file.data; // for debugging not crashing my browser because of the large buffer
 	}
+	if(input.id) delete input.id;
 }
 else if(input.action==="post-saved"){
 	const now=Date.now();
 	let article={
-		...blog.getSavedArticle(),
 		id: now,
 		folder: "saved",
+		...blog.getArticle(Number(input.id))||{},
+		...blog.getSavedArticle(),
 	};
 	if(!article.title||!article.description||!article.articleText){
-		const url="?err=article_requirements_missing&view=create";
+		log("err: article_requirements_missing");
+		const url="?err=article_requirements_missing&view=editor";
 		response.setHeader("Location",url);
 		throw 302;
 	}
-	article=blog.createArticle(article);
-	blog.setSavedArticle(blog.getArticleTemplate({id:0,folder:"saved"}));
+	await blog.createArticle(article);
+	blog.setSavedArticle(blog.getArticleTemplate({id:now,folder:"saved"}));
 
-	const url="/blog/article.html?id="+now;
+	const url="/blog?i="+article.id;
+	log("jump: "+url);
 	response.setHeader("Location",url);
 	throw 302;
 }
+else if(input.action==="post-edit"){
+	let article=blog.getArticle(Number(input.id));
+	if(!article){
+		log("err: article_id_not_exist");
+		const url="?err=article_id_not_exist&view=editor";
+		response.setHeader("Location",url);
+		throw 302;
+	}
+	article={
+		...article,
+		title: input.title||'',
+		description: input.description||'',
+		visibility: input.visibility||'everyone',
+		articleText: input.articleText||'',
+	};
+	const fileCounts=article.files.length;
+	for(let index=0; index<fileCounts; index+=1){
+		const file=article.files[index];
+		const keepFile=input["file"+index]==="on";
+		if(!keepFile){
+			article.files=await blog.removeFileFromArticle(article.id,file);
+		}
+		if(input.file.filename!==""&&!article.files.includes(input.file.filename)){
+			article.files=await blog.addFileToArticle(article.id,input.file.filename,input.file.data);
+			delete input.file.data; // for debugging not crashing my browser because of the large buffer
+		}
+	}
+	await blog.editArticle(article);
+}
 
-?>
+?><!DOCTYPE html>
+<!--CREATED 23.02.2025 AT 09:45-->
 <html>
 <head>
 	<?=importHead({
@@ -61,6 +94,10 @@ else if(input.action==="post-saved"){
 		tabs: 1,
 		title: "Blog-Artikel Erstellen und Bearbeiten",
 		botIndexAllow: false,
+		css:[
+			"/css/main.css",
+			"/blog/editor.css",
+		],
 	})?>
 </head>
 <body>
@@ -68,15 +105,31 @@ else if(input.action==="post-saved"){
 	if(!input.view||input.view==="main"){
 ?>	<h1>Blog-Artikel Erstellen oder Bearbeiten, Bitte auswählen!</h1>
 	<ul>
-		<li>Ich Möchte einen Artikel <a href="?view=create">Erstellen</a>.</li>
+		<li>Ich Möchte einen Artikel <a href="?view=editor">Erstellen</a>.</li>
 		<li>Ich Möchte einen vorhandenen Artikel <a href="?view=edit">Bearbeiten</a>.</li>
 	</ul>
 <?
-	}else if(input.view==="create"){
+	}else if(input.view==="editor"){
 ?>	<h1>Neuer Blog-Artikel</h1>
 <?
-		const savedArticle=blog.getSavedArticle();
-		if(savedArticle&&input.action==="save"){
+		let article;
+		let isArticleSaved=true;
+		{
+			if(input.id==="saved"||!input.id) article=blog.getSavedArticle();
+			else if(input.id){
+				const id=Number(input.id);
+				article=blog.getArticle(id);
+				if(!article){
+					log('err: article_id_not_exist');
+					const url="?err=article_id_not_exist&view=editor";
+					response.setHeader("Location",url);
+					throw 302;
+				}
+				if(!article.articleText) article.articleText=await blog.getArticleText(id);
+				isArticleSaved=false;
+			}
+		};
+		if(article&&input.action==="save"){
 ?>	<p><span style=color:gold>INFO</span>: Artikel Zwischengespeichert!</p>
 <?
 		}
@@ -87,6 +140,10 @@ else if(input.action==="post-saved"){
 			switch(error){
 				case "article_requirements_missing":
 					message="Es Fehlen Informationen, bitte ergenzen!";
+					break;
+				case "article_id_not_exist":
+					message="Artikel mit dieser ID-Kennung gibt es nicht!";
+					critical=1;
 					break;
 				default:
 					message="Es ist ein Unbekannter fehler aufgetreten!";
@@ -99,28 +156,29 @@ else if(input.action==="post-saved"){
 			if(critical===0){color="gold";text="INFO";}
 			else if(critical===1){color="orange";text="WARNING";}
 			else if(critical===2){color="red";text="ERROR";}
-?>	<p title=<?=error?>><span style=color:<?=color?>><?=text?></span>: <?=message?></p>
+?>	<p title=<?=error?>><span style=color:<?=color?>><?=text?></span>: <?=message?> <i><a href="?view=editor" title="Fehler Ausblenden">(schließen)</a></i></p>
 <?
 		}
 ?>	<form id=form method=post enctype=multipart/form-data>
-		<input type=hidden name=view value=create>
+		<input type=hidden name=view value=editor>
+		<input type=hidden name=id value=<?=isArticleSaved?'saved':Number(input.id)?>>
 		<input type=hidden name=action value=save>
-		<p>Titel: <input type=text name=title required autocomplete value="<?=savedArticle.title||''?>"></p>
-		<p>Beschreibung: <input type=text name=description required autocomplete=off value="<?=savedArticle.description||''?>"></p>
+		<p class=input>Titel: <input type=text name=title required autocomplete value="<?=article.title||''?>"></p>
+		<p class=input>Beschreibung: <input type=text name=description required autocomplete=off value="<?=article.description||''?>"></p>
 		<p>Sichtbarkeit: <select name=visibility required>
-			<option value=everyone<?=savedArticle.visibility==='everyone'?' selected':''?>>Alle</option>
-			<option value=logined<?=savedArticle.visibility==='logined'?' selected':''?>>Angemeldet</option>
-			<option value=rank-blog<?=savedArticle.visibility==='rank-blog'?' selected':''?>>Blog-Rank</option>
-			<option value=rank-blog-extra<?=savedArticle.visibility==='rank-blog-extra'?' selected':''?>>Blog-extra-Rank</option>
-			<option value=owner<?=savedArticle.visibility==='owner'?' selected':''?>>Admins</option>
+			<option value=everyone<?=article.visibility==='everyone'?' selected':''?>>Alle</option>
+			<option value=logined<?=article.visibility==='logined'?' selected':''?>>Angemeldet</option>
+			<option value=rank-blog<?=article.visibility==='rank-blog'?' selected':''?>>Blog-Rank</option>
+			<option value=rank-blog-extra<?=article.visibility==='rank-blog-extra'?' selected':''?>>Blog-extra-Rank</option>
+			<option value=owner<?=article.visibility==='owner'?' selected':''?>>Admins</option>
 		</select></p>
-		<p>Datei<?=savedArticle.files.length===1?'':'en'?> <?=savedArticle.files.length>0?savedArticle.files.length:'Keine'?></p>
+		<p>Datei<?=article.files.length===1?'':'en'?> <?=article.files.length>0?article.files.length:'Keine'?></p>
 <?
-		if(savedArticle.files.length>0){
+		if(article.files.length>0){
 ?>		<ul>
 <?
-		for(let index=0; index<savedArticle.files.length; index+=1){
-			const name=savedArticle.files[index];
+		for(let index=0; index<article.files.length; index+=1){
+			const name=article.files[index];
 ?>			<li><span><input type=checkbox name=file<?=index?> checked> <?=name?></span></li>
 <?
 		}
@@ -128,20 +186,24 @@ else if(input.action==="post-saved"){
 <?
 		}
 ?>		<input type=file name=file>
-		<p><textarea name=articleText><?=savedArticle.articleText||''?></textarea></p>
-		<p>Aktionen: 
-			<input type=submit value="Artikel zwischenspeichern" title="Speichert auf Server" onclick="document.getElementById('form').action.value='save';">
-			<input type=submit value=Vorschau title="Zeigt eine vorschau des Artikels wie vorm ausdrucken eines Dokuments." onclick="document.getElementById('form').view.value='create-preview';">
-		</p>
+		<p><textarea name=articleText><?=article.articleText||''?></textarea></p>
+		<p class=actions>Aktionen: 
+			<input type=submit value="Artikel zwischenspeichern<?=!isArticleSaved?' (ÜBERSCHREIBEN)':''?>" title="Speichert auf Server">
+			<input type=submit value="Vorschau<?=!isArticleSaved?' (ÜBERSCHREIBEN)':''?>" title="<?=!isArticleSaved?'ACHTUNG: Überschreibt den Artiekel im Zwischenspeicher!&#10;':''?>Zeigt eine vorschau des Artikels wie vorm ausdrucken eines Dokuments." onclick="document.getElementById('form').view.value='saved-preview';">
+<?
+		if(!isArticleSaved){
+?>			<input type=submit value="Direkt Posten" title="Überschreibt nicht den Zwischenspeicher!" onclick="document.getElementById('form').action.value='post-edit';">
+<?		}
+?>		</p>
 <?
 		if(input.action==="load"||true){ // old if state i shoud remove that condition
 ?>		<script>
-			if(history.replaceState) history.replaceState(null,"","?view=create");
+			if(history.replaceState) history.replaceState(null,"","?view=editor<?=!isArticleSaved?('&id='+Number(input.id)):''?>");
 			document.addEventListener("visibilitychange",event=>{
 				if(document.visibilityState!=="hidden"||!window.autosave) return;
 				var form=document.getElementById("form");
 				form.action.value="save";
-				form.view.value="create";
+				form.view.value="editor";
 				form.submit();
 			});
 		</script>
@@ -150,16 +212,17 @@ else if(input.action==="post-saved"){
 ?>	</form>
 <?
 	}
-	else if(input.view==="create-preview"){
+	else if(input.view==="saved-preview"){
 		const article=blog.getSavedArticle();
 		if(!article.title||!article.description){
-			const url="?err=article_requirements_missing&view=create";
+			log("err: article_requirements_missing");
+			const url="?err=article_requirements_missing&view=editor";
 			response.setHeader("Location",url);
 			throw 302;
 		}
 		if(!article.articleText) article.articleText=await blog.getArticleText(article.id);
 ?>	<script>
-		if(history.replaceState) history.replaceState(null,"","?view=create-preview");
+		if(history.replaceState) history.replaceState(null,"","?view=saved-preview");
 	</script>
 	<h1><a href=//lff.one>LFF.ONE</a>/<a href=/blog>BLOG</a></h1>
 	<h2><?=article.title?></h2>
@@ -175,13 +238,21 @@ else if(input.action==="post-saved"){
 		<input type=submit value=Veröffentlichen>
 	</form>
 	<form method=get>
-		<input type=hidden name=view value=create>
+		<input type=hidden name=view value=editor>
 		<input type=submit value=Bearbeiten>
 	</form>
 <?
 	}
 	else if(input.view==="edit"){
-		// blog edit view
+?>	<h1>Artikel zum Bearbeiten Auswählen</h1>
+	<ul>
+<?
+		for(const article of blog.getArticles()){
+?>		<li><a href="?view=editor&id=<?=article.id?>"><?=article.title?></a> <i><?=new Date(article.lastEdit).toLocaleString()?></i></li>
+<?
+		}
+?>	</ul>
+<?
 	}
 	else if(input.view==="submit"){
 ?>	<p>SUBMIT!!</p>

@@ -1,7 +1,7 @@
 <?
 const fs=require("fs");
 const blog=service_require("blog/blog");
-const [id,file]=input.browserLocationAppended.split("/");
+const [id,file]=input.browserLocationAppended.split("/").map(unescape);
 
 if(!id||!file) throw 400;
 

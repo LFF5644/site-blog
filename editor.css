@@ -1,0 +1,18 @@
+p.input{
+	display: flex;
+	align-items: center;
+}
+p.input>input[type=text]{
+	margin-left:5px;
+	flex:1;
+	max-width: 90%;
+	min-width: 10%;
+}
+
+p.actions{
+	max-width: 80%;
+	text-align: left;
+}
+p.actions>input[type=submit]{
+	margin: 5px;
+}
