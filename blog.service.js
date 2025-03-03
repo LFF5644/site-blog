@@ -11,6 +11,7 @@ const {
 	writeFileAsync,
 	rmFileAsync,
 	renameAsync,
+	existsAsync,
 	tofsStr,
 }=globals.functions;
 
@@ -43,9 +44,9 @@ const saveSavedArticleFile=async()=>{
 }
 const loadSavedArticleFile=async()=>{
 	log("Load: "+blogArticlesDir+"saved/article.json");
-	const article=this.getArticleTemplate(await readJsonFileAsync(blogArticlesDir+"saved/article.json")||{});
-	if(!article) this.savedArticle=this.getArticleTemplate();
-	else this.savedArticle=article;
+	const article=await readJsonFileAsync(blogArticlesDir+"saved/article.json");
+	if(!article) this.savedArticle=this.getArticleTemplate({folder:"saved"});
+	else this.savedArticle=this.getArticleTemplate(article);
 }
 
 this.createArticle=async(article)=>{
@@ -78,17 +79,29 @@ this.createArticle=async(article)=>{
 	log("NEW ARTICLE CREATED: "+article.title+", files: "+article.files.length+", visibility: "+article.visibility);
 	this.articles.push(article);
 	this.saveRequired=true;
-	return article
+	return article;
 }
 this.editArticle=async(article)=>{
+	const lastArticle=this.getArticle(article.id);
+	if(!lastArticle) throw new Error("Article not exist, edit not allowed!");
 	article={
 		...this.articleTemplate,
-		...this.getArticle(article.id),
+		...lastArticle,
 		...article,
 	};
 	const articleIndex=this.getArticleIndex(article.id);
 	if(articleIndex===-1) throw new Error("article not found");
-
+	if(article.sourceFolder){
+		const source=article.sourceFolder;
+		delete article.sourceFolder;
+		for(const file of article.files){
+			const fileSourcePath=blogArticlesDir+source+"/"+file;
+			const fileTargetPath=blogArticlesDir+article.folder+"/"+file;
+			if(!await existsAsync(fileSourcePath)) continue;
+			log("moving: "+fileSourcePath+" => "+fileTargetPath);
+			await renameAsync(fileSourcePath,fileTargetPath);
+		}
+	}
 	if(article.articleText){
 		log("edit: Article Text...");
 		const file=blogArticlesDir+article.folder+"/"+article.articleFile;

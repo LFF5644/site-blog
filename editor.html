@@ -4,6 +4,7 @@ const blog=service_require("blog/blog");
 
 if(input.id==="saved") delete input.id;
 else if(input.id) input.id=Number(input.id);
+
 if(input.action==="save"){
 	const now=Date.now();
 	const lastArticle=input.id?(blog.getArticle(input.id)||{}):(blog.getSavedArticle()||{});
@@ -36,18 +37,23 @@ if(input.action==="save"){
 else if(input.action==="post-saved"){
 	const now=Date.now();
 	let article={
-		id: now,
-		folder: "saved",
+		...blog.articleTemplate,
 		...blog.getArticle(Number(input.id))||{},
 		...blog.getSavedArticle(),
 	};
+	console.log("POST SAVED:",article);
 	if(!article.title||!article.description||!article.articleText){
 		log("err: article_requirements_missing");
 		const url="?err=article_requirements_missing&view=editor";
 		response.setHeader("Location",url);
 		throw 302;
 	}
-	await blog.createArticle(article);
+	if(article.folder!=="saved"||!article.folder){
+		article.sourceFolder="saved";
+		await blog.editArticle(article);
+	}else{
+		await blog.createArticle(article);		
+	}
 	blog.setSavedArticle(blog.getArticleTemplate({id:now,folder:"saved"}));
 
 	const url="/blog?i="+article.id;
