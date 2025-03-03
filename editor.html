@@ -23,8 +23,13 @@ if(input.action==="save"){
 		const file=article.files[index];
 		const keepFile=input["file"+index]==="on";
 		if(!keepFile){
-			await blog.removeFileFromSavedArticle(file);
-			article.files=article.files.filter(item=>item!==file);
+			if(article.folder!=="saved"){
+				await blog.removeFileFromArticle(article.id,file);
+				article.files=article.files.filter(item=>item!==file);
+			}else{
+				await blog.removeFileFromSavedArticle(file);
+				article.files=article.files.filter(item=>item!==file);
+			}
 		}
 	}
 	blog.setSavedArticle(article);
@@ -192,7 +197,7 @@ else if(input.action==="post-edit"){
 <?
 		}
 ?>		<input type=file name=file>
-		<p><textarea name=articleText><?=article.articleText||''?></textarea></p>
+		<p><textarea name=articleText oninput="textareaFitContent('articleText')" onfocus="textareaFitContent('articleText')"><?=article.articleText||''?></textarea></p>
 		<p class=actions>Aktionen: 
 			<input type=submit value="Artikel zwischenspeichern<?=!isArticleSaved?' (ÜBERSCHREIBEN)':''?>" title="Speichert auf Server">
 			<input type=submit value="Vorschau<?=!isArticleSaved?' (ÜBERSCHREIBEN)':''?>" title="<?=!isArticleSaved?'ACHTUNG: Überschreibt den Artiekel im Zwischenspeicher!&#10;':''?>Zeigt eine vorschau des Artikels wie vorm ausdrucken eines Dokuments." onclick="document.getElementById('form').view.value='saved-preview';">
@@ -201,21 +206,22 @@ else if(input.action==="post-edit"){
 ?>			<input type=submit value="Direkt Posten" title="Überschreibt nicht den Zwischenspeicher!" onclick="document.getElementById('form').action.value='post-edit';">
 <?		}
 ?>		</p>
-<?
-		if(input.action==="load"||true){ // old if state i shoud remove that condition
-?>		<script>
+		<script>
 			if(history.replaceState) history.replaceState(null,"","?view=editor<?=!isArticleSaved?('&id='+Number(input.id)):''?>");
-			document.addEventListener("visibilitychange",event=>{
+			/*document.addEventListener("visibilitychange",event=>{
 				if(document.visibilityState!=="hidden"||!window.autosave) return;
 				var form=document.getElementById("form");
 				form.action.value="save";
 				form.view.value="editor";
 				form.submit();
-			});
+			});*/
+			function textareaFitContent(name){
+				var element=document.getElementById("form")[name];
+				element.style.height="auto";
+				element.style.height=element.scrollHeight+"px";
+			}
 		</script>
-<?
-		}
-?>	</form>
+	</form>
 <?
 	}
 	else if(input.view==="saved-preview"){
