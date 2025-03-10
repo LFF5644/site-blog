@@ -232,7 +232,9 @@ else if(input.action==="post-edit"){
 			response.setHeader("Location",url);
 			throw 302;
 		}
-		if(!article.articleText) article.articleText=await blog.getArticleText(article.id);
+		if(!article.articleText){
+			article.articleText=await blog.getArticleText(article.id);
+		}
 ?>	<script>
 		if(history.replaceState) history.replaceState(null,"","?view=saved-preview");
 	</script>

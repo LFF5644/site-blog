@@ -15,6 +15,8 @@ const {
 	tofsStr,
 }=globals.functions;
 
+let isStarting=false;
+
 const getDateUpsideDown=(date=new Date(),sub=".")=> date.getFullYear()+sub+String(date.getMonth()+1).padStart(2,0)+sub+String(date.getDate()).padStart(2,0);
 const getTimeUpsideDown=(date=new Date,sub=":")=> String(date.getHours()).padStart(2,0)+sub+String(date.getMinutes()).padStart(2,0);
 const excludeTemplate=(object,template)=>Object.fromEntries(Object.entries(object).filter(item=>template[item[0]]!==item[1]));
@@ -277,6 +279,7 @@ this.start=async()=>{
 	this.articles=[];
 	this.savedArticle={};
 	this.articlesFunctionCache=[];
+	isStarting=true;
 
 	await createDirAsync("data/blog"); // erstellen des "blog" ordners im daten speicher!
 	
@@ -284,8 +287,14 @@ this.start=async()=>{
 	await loadSavedArticleFile();
 
 	this.saveInterval=setInterval(this.save,1e3*20); // autosave all 20s
+
+	isStarting=false; // service started!
 }
 this.save=async required=>{
+	if(isStarting){
+		log("Service is still starting DONT SAVE!!");
+		return;
+	}
 	if(this.saveRequired===true||required===true){
 		log("saving "+this.articles.length+" articles to file.");
 		await saveBlogArticlesFile();
