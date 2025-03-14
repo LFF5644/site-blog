@@ -1,0 +1,23 @@
+{
+	"name":"LFFs-Blog-Editor",
+	"description":"Landos Blog-Editor auf LFF.one",
+	"short_name":"Blog Editor",
+	"icons":[
+		{
+			"sizes":"any 128x128",
+			"type": "image/svg+xml",
+			"src":"/files/img/icon/blog/editorAny.svg"
+		},
+		{
+			"sizes":"48x48",
+			"type": "image/png",
+			"src":"/files/img/icon/blog/editor48.png"
+		}
+	],
+	"scope":"/blog/editor/",
+	"start_url":"/blog/editor?type=app",
+	"id":"/blog?type=app",
+	"display":"standalone",
+	"theme_color": "#103",
+	"background_color":"#103"
+}

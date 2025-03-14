@@ -4,7 +4,7 @@
 		importHead,
 	}=globals.functions;
 
-	const blog=service_require("blog/blog");
+	const blog=service_require("web/blog/blog");
 
 	const article=(()=>{
 		if(input.i) return blog.getArticle(Number(input.i));
@@ -19,7 +19,7 @@
 		}
 	}
 	else{
-		if(request.url.startsWith("/blog/article.html")){
+		if(request.url.startsWith("/blog/article.html")||request.url.startsWith("/web/blog/article.html")){
 			response.setHeader("Location","/blog");
 			throw 302;
 		}
@@ -33,9 +33,15 @@
 		title: article?article.title+" - LFF.one":article===null?"Blog Artikel - LFF.one":"Artikel nicht gefunden",
 		tabs: 1,
 		//botIndexAllow: false, // disallow googel bots and co to visit and scan that
+		manifest: "/web/blog/manifest_blog.json",
+		icons: {
+			"128x128": "/files/img/icon/blog/blogAny.svg",
+			"256x256": "/files/img/icon/blog/blog256.png",
+			"48x48": "/files/img/icon/blog/blog48.png",
+		},
 		css: [
 			"/css/main.css",
-			"/blog/article.css",
+			"/web/blog/article.css",
 		],
 	})?>
 </head>

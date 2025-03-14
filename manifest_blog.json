@@ -1,0 +1,28 @@
+{
+	"name":"LFFs-Blog",
+	"description":"Landos Blog auf LFF.one",
+	"short_name":"Blog",
+	"icons":[
+		{
+			"sizes":"any 128x128",
+			"type": "image/svg+xml",
+			"src":"/files/img/icon/blog/blogAny.svg"
+		},
+		{
+			"sizes":"256x256",
+			"type": "image/png",
+			"src":"/files/img/icon/blog/blog256.png"
+		},
+		{
+			"sizes":"48x48",
+			"type": "image/png",
+			"src":"/files/img/icon/blog/blog48.png"
+		}
+	],
+	"scope":"/blog/",
+	"start_url":"/blog?type=app",
+	"id":"/blog?type=app",
+	"display":"standalone",
+	"theme_color": "#103",
+	"background_color":"#103"
+}

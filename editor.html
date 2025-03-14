@@ -1,6 +1,6 @@
 <?
 const {importHead}=globals.functions;
-const blog=service_require("blog/blog");
+const blog=service_require("web/blog/blog");
 
 if(input.id==="saved") delete input.id;
 else if(input.id) input.id=Number(input.id);
@@ -105,9 +105,14 @@ else if(input.action==="post-edit"){
 		tabs: 1,
 		title: "Blog-Artikel Erstellen und Bearbeiten",
 		botIndexAllow: false,
+		manifest: "/web/blog/manifest_editor.json",
+		icons: {
+			"128x128": "/files/img/icon/blog/editorAny.svg",
+			"48x48": "/files/img/icon/blog/editor48.png",
+		},
 		css:[
 			"/css/main.css",
-			"/blog/editor.css",
+			"/web/blog/editor.css",
 		],
 	})?>
 </head>
