@@ -19,7 +19,7 @@ let isStarting=false;
 
 const getDateUpsideDown=(date=new Date(),sub=".")=> date.getFullYear()+sub+String(date.getMonth()+1).padStart(2,0)+sub+String(date.getDate()).padStart(2,0);
 const getTimeUpsideDown=(date=new Date,sub=":")=> String(date.getHours()).padStart(2,0)+sub+String(date.getMinutes()).padStart(2,0);
-const excludeTemplate=(object,template)=>Object.fromEntries(Object.entries(object).filter(item=>template[item[0]]!==item[1]));
+const excludeTemplate=(object,template)=>Object.fromEntries(Object.entries(object).filter(item=>typeof(item[1])==="object"||template[item[0]]!==item[1]));
 
 const loadBlogArticlesFile=async()=>{
 	log("Load: "+blogArticlesFile);
