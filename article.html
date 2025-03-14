@@ -56,20 +56,26 @@
 	else if(article){
 ?>	<h1 class=articleTitle><?=article.title?></h1>
 	<p class=articleDescription><?=article.description?></p>
-	<div class=articleText><?=await blog.executeBlogArticleCode(article.id)?></div>
+	<div class=articleText><?=await blog.executeBlogArticleCode(article)?></div>
 <?
 	}
 	else if(article===null){
-	const articles=blog.getArticles();
-?>	<h1>Artikel <?=articles.length?></h1>
+		const articles=blog.getArticles();
+		if(articles.length===0){
+?>	<h1>Blog Von Lando :)</h1>
+	<p>Derzeit Keine Blog-Artikel Gepostet, komm doch später wieder :)</p>
+<?
+		}else{
+?>	<h1>Blog mit <?=articles.length?> Artikel</h1>
 	<ul class=articles>
 <?
-		for(const article of articles){
+			for(const article of articles){
 ?>		<li class=article><a href=/blog/<?=article.folder?>><?=article.title?></a><img src=/files/img/info64.png height=16 align=bottom onclick="alert('Titel: <?=article.title?>\nBeschreibung: <?=article.description?>\nErstellt: <?=new Date(article.created).toLocaleString()?>\nZuletzt Bearbeitet: <?=new Date(article.lastEdit).toLocaleString()?>\nDateien: <?=article.files.length===0?"Keine":article.files.join('; ')?>\n')"></li>
 <?
-		}
+			}
 ?>	</ul>
 <?
+		}
 	}
 ?></body>
 </html>

@@ -125,8 +125,12 @@ this.getArticleText=id=>{
 	const file=blogArticlesDir+article.folder+"/"+article.articleFile;
 	return readFileAsync(file,"utf-8");
 }
-this.executeBlogArticleCode=async(id)=>{
-	const rawArticleText=await this.getArticleText(id);
+this.executeBlogArticleCode=async(article)=>{
+	let id,rawArticleText;
+	id=article.id;
+	if(article.articleText) rawArticleText=article.articleText;
+	else rawArticleText=await this.getArticleText(id);
+
 	let index=0;
 	let staticData=true;
 	let articleTextFunction="(async function(article,data,globals,log){let res='';";
@@ -167,7 +171,6 @@ this.executeBlogArticleCode=async(id)=>{
 
 	let articleText='';
 	let articleFunction;
-	const article=this.getArticle(id);
 	try{
 		articleFunction=eval(articleTextFunction);
 	}catch(e){
