@@ -39,6 +39,18 @@ if(input.action==="save"){
 	}
 	if(input.id) delete input.id;
 }
+else if(input.action==="delete-saved"){
+	const now=Date.now();
+	const lastArticle={
+		...blog.articleTemplate,
+		...blog.getSavedArticle(),
+	};
+	log("DELETING SAVED ARTICLE!");
+	for(const file of lastArticle.files){
+		await blog.removeFileFromSavedArticle(file);
+	}
+	blog.setSavedArticle(blog.getArticleTemplate({id:now,folder:"saved"}));
+}
 else if(input.action==="post-saved"){
 	const now=Date.now();
 	let article={
@@ -212,6 +224,10 @@ else if(input.action==="post-edit"){
 		if(!isArticleSaved){
 ?>			<input type=submit value="Direkt Posten" title="Überschreibt nicht den Zwischenspeicher!" onclick="document.getElementById('form').action.value='post-edit';">
 <?		}
+		else if(isArticleSaved){
+?>			<input type=submit value="Zwischenspeicher Löschen!!!" onclick="if(!confirm('Zwischengespeicherten Artikel WIRKLICH Löschen???\n\nDIES KANN NICHT RÜCKGÄNIG GEMACHT WERDEN!!!')) return false; document.getElementById('form').action.value='delete-saved';">
+<?
+		}
 ?>		</p>
 		<script>
 			if(history.replaceState) history.replaceState(null,"","?view=editor<?=!isArticleSaved?('&id='+Number(input.id)):''?>");
