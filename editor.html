@@ -117,12 +117,12 @@ else if(input.action==="post-edit"){
 		tabs: 1,
 		title: "Blog-Artikel Erstellen und Bearbeiten",
 		botIndexAllow: false,
-		manifest: "/web/blog/manifest_editor.json",
+		manifest: "/web/blog/manifest.json",
 		icons: {
-			"128x128": "/files/img/icon/blog/editorAny.svg",
-			"128x128": "/files/img/icon/blog/editorAny2.svg",
-			"256x256": "/files/img/icon/blog/editor256.png",
-			"48x48": "/files/img/icon/blog/editor48.png",
+			"128x128": "/files/img/icon/blog/editAny.svg",
+			"128x128": "/files/img/icon/blog/editAny2.svg",
+			"256x256": "/files/img/icon/blog/edit256.png",
+			"48x48": "/files/img/icon/blog/edit48.png",
 		},
 		css:[
 			"/css/main.css",
@@ -161,6 +161,10 @@ else if(input.action==="post-edit"){
 		};
 		if(article&&input.action==="save"){
 ?>	<p><span style=color:gold>INFO</span>: Artikel Zwischengespeichert!</p>
+<?
+		}
+		else if(input.action==="delete-saved"){
+?>	<p><span style=color:gold>INFO</span>: Zwischenspeicher <span style=color:red>Gelöscht</span>!</p>
 <?
 		}
 		if(input.err){
@@ -225,7 +229,7 @@ else if(input.action==="post-edit"){
 ?>			<input type=submit value="Direkt Posten" title="Überschreibt nicht den Zwischenspeicher!" onclick="document.getElementById('form').action.value='post-edit';">
 <?		}
 		else if(isArticleSaved){
-?>			<input type=submit value="Zwischenspeicher Löschen!!!" onclick="if(!confirm('Zwischengespeicherten Artikel WIRKLICH Löschen???\n\nDIES KANN NICHT RÜCKGÄNIG GEMACHT WERDEN!!!')) return false; document.getElementById('form').action.value='delete-saved';">
+?>			<button form="" onclick="if(!confirm('Zwischengespeicherten Artikel WIRKLICH Löschen???\n\nDIES KANN NICHT RÜCKGÄNIG GEMACHT WERDEN!!!')) return false; document.getElementById('form').action.value='delete-saved';document.getElementById('form').submit()">Zwischenspeicher Löschen!!!</button>
 <?
 		}
 ?>		</p>

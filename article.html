@@ -5,6 +5,7 @@
 	}=globals.functions;
 
 	const blog=service_require("web/blog/blog");
+	//const account=service_require_try("server/account/account.new");
 
 	const article=(()=>{
 		if(input.i) return blog.getArticle(Number(input.i));
@@ -23,6 +24,10 @@
 			response.setHeader("Location","/blog");
 			throw 302;
 		}
+		else if(request.url.startsWith("/blog/editor.html")||request.url.startsWith("/web/blog/editor.html")){
+			response.setHeader("Location","/blog/editor");
+			throw 302;
+		}
 	}
 
 ?>
@@ -30,10 +35,10 @@
 <head>
 	<?=importHead({
 		input,
-		title: article?article.title+" - LFF.one":article===null?"Blog Artikel - LFF.one":"Artikel nicht gefunden",
+		title: article?article.title+" - LFF.one":article===null?"Landos-Blog - LFF.one":"Artikel nicht gefunden",
 		tabs: 1,
 		//botIndexAllow: false, // disallow googel bots and co to visit and scan that
-		manifest: "/web/blog/manifest_blog.json",
+		manifest: "/web/blog/manifest.json",
 		icons: {
 			"128x128": "/files/img/icon/blog/blogAny.svg",
 			"256x256": "/files/img/icon/blog/blog256.png",
@@ -66,7 +71,7 @@
 	<p>Derzeit Keine Blog-Artikel Gepostet, komm doch später wieder :)</p>
 <?
 		}else{
-?>	<h1>Blog mit <?=articles.length?> Artikel</h1>
+?>	<h1>Landos-Blog mit <span style=color:orange><?=articles.length===1?"einem":(articles.length+".")?></span> Artikel</h1>
 	<ul class=articles>
 <?
 			for(const article of articles){

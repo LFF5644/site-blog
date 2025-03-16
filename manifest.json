@@ -20,8 +20,8 @@
 		}
 	],
 	"scope":"/blog/",
-	"start_url":"/blog?type=app",
-	"id":"/blog?type=app",
+	"start_url":"/blog/?type=app",
+	"id":"/blog/",
 	"display":"standalone",
 	"theme_color": "#103",
 	"background_color":"#103"
