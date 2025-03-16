@@ -1,11 +1,38 @@
 <?
 const {importHead}=globals.functions;
 const blog=service_require("web/blog/blog");
+const account=service_require_try("server/account/account.new");
+
+const permissions={
+	// set default permissions if account service offline or user not logined
+	editor: false,
+	post: false,
+	overwriteArticle: false,
+	editSaved: false,
+};
+let user=null;
+account:{
+	if(!account) break account;
+	const {data,allowed}=account.authUserByInput(input);
+	if(!allowed) break account;
+	const username=data.account.username;
+	user=data.account;
+	for(const permission of Object.keys(permissions)){
+		permissions[permission]=account.hasAccountRankAttr({username,rankAttr:"blog-"+permission});
+	}
+}
+if(!permissions.editor) throw 401;
 
 if(input.id==="saved") delete input.id;
 else if(input.id) input.id=Number(input.id);
 
 if(input.action==="save"){
+	if(!permissions.editSaved){
+		log("err: no_edit_saved_permission");
+		const url="?err=no_edit_saved_permission&view=editor";
+		response.setHeader("Location",url);
+		throw 302;
+	}
 	const now=Date.now();
 	const lastArticle=input.id?(blog.getArticle(input.id)||{}):(blog.getSavedArticle()||{});
 	const lastEdit=input.articleText===lastArticle.articleText?lastArticle.lastEdit:now;
@@ -40,6 +67,12 @@ if(input.action==="save"){
 	if(input.id) delete input.id;
 }
 else if(input.action==="delete-saved"){
+	if(!permissions.editSaved){
+		log("err: no_delete_saved_permission");
+		const url="?err=no_delete_saved_permission&view=editor";
+		response.setHeader("Location",url);
+		throw 302;
+	}
 	const now=Date.now();
 	const lastArticle={
 		...blog.articleTemplate,
@@ -52,6 +85,12 @@ else if(input.action==="delete-saved"){
 	blog.setSavedArticle(blog.getArticleTemplate({id:now,folder:"saved"}));
 }
 else if(input.action==="post-saved"){
+	if(!permissions.post){
+		log("err: no_post_permission");
+		const url="?err=no_post_permission&view=editor";
+		response.setHeader("Location",url);
+		throw 302;
+	}
 	const now=Date.now();
 	let article={
 		...blog.articleTemplate,
@@ -79,6 +118,12 @@ else if(input.action==="post-saved"){
 	throw 302;
 }
 else if(input.action==="post-edit"){
+	if(!permissions.overwriteArticle){
+		log("err: no_article_overwrite_permission");
+		const url="?err=no_article_overwrite_permission&view=editor";
+		response.setHeader("Location",url);
+		throw 302;
+	}
 	let article=blog.getArticle(Number(input.id));
 	if(!article){
 		log("err: article_id_not_exist");
@@ -92,6 +137,7 @@ else if(input.action==="post-edit"){
 		description: input.description||'',
 		visibility: input.visibility||'everyone',
 		articleText: input.articleText||'',
+		lastEdit: input.articleText===article.articleText?article.lastEdit:Date.now(),
 	};
 	const fileCounts=article.files.length;
 	for(let index=0; index < fileCounts; index+=1){
@@ -132,14 +178,14 @@ else if(input.action==="post-edit"){
 </head>
 <body>
 <?
-	if(!input.view||input.view==="main"){
+	if((!input.view||input.view==="main")&&permissions.editor){
 ?>	<h1>Blog-Artikel Erstellen oder Bearbeiten, Bitte auswählen!</h1>
 	<ul>
 		<li>Ich Möchte einen Artikel <a href="?view=editor">Erstellen</a>.</li>
 		<li>Ich Möchte einen vorhandenen Artikel <a href="?view=edit">Bearbeiten</a>.</li>
 	</ul>
 <?
-	}else if(input.view==="editor"){
+	}else if(input.view==="editor"&&permissions.editor){
 ?>	<h1>Neuer Blog-Artikel</h1>
 <?
 		let article;
@@ -177,6 +223,22 @@ else if(input.action==="post-edit"){
 					break;
 				case "article_id_not_exist":
 					message="Artikel mit dieser ID-Kennung gibt es nicht!";
+					critical=1;
+					break;
+				case "no_article_overwrite_permission":
+					message="<b>Keine Rechte</b> um Artikel Änderungen zu übernehmen!";
+					critical=2;
+					break;
+				case "no_post_permission":
+					message="<b>Keine Rechte</b> um Artikel zu Posten!";
+					critical=1;
+					break;
+				case "no_edit_saved_permission":
+					message="<b>Keine Rechte</b> zum zwischenspeichern!";
+					critical=2;
+					break;
+				case "no_delete_saved_permission":
+					message="<b>Keine Rechte</b> um Zwischenspeicher zu Löschen!"
 					critical=1;
 					break;
 				default:
@@ -251,7 +313,7 @@ else if(input.action==="post-edit"){
 	</form>
 <?
 	}
-	else if(input.view==="saved-preview"){
+	else if(input.view==="saved-preview"&&permissions.editor){
 		const article=blog.getSavedArticle();
 		if(!article.title||!article.description){
 			log("err: article_requirements_missing");
@@ -296,7 +358,7 @@ else if(input.action==="post-edit"){
 	</form>
 <?
 	}
-	else if(input.view==="edit"){
+	else if(input.view==="edit"&&permissions.editor){
 ?>	<h1>Artikel zum Bearbeiten Auswählen</h1>
 	<ul>
 <?

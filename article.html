@@ -5,7 +5,26 @@
 	}=globals.functions;
 
 	const blog=service_require("web/blog/blog");
-	//const account=service_require_try("server/account/account.new");
+	const account=service_require_try("server/account/account.new");
+
+	const permissions={
+		// set default permissions if account service offline or user not logined
+		editor: false,
+		post: false,
+		overwriteArticle: false,
+		editSaved: false,
+	};
+	let user=null;
+	account:{
+		if(!account) break account;
+		const {data,allowed}=account.authUserByInput(input);
+		if(!allowed) break account;
+		const username=data.account.username;
+		user=data.account;
+		for(const permission of Object.keys(permissions)){
+			permissions[permission]=account.hasAccountRankAttr({username,rankAttr:"blog-"+permission});
+		}
+	}
 
 	const article=(()=>{
 		if(input.i) return blog.getArticle(Number(input.i));
@@ -82,5 +101,9 @@
 <?
 		}
 	}
-?></body>
+?><footer>Hallo <?=user?(user.nickname?user.nickname:user.username):'<a href=/account title=Anmelden onclick="return confirm(\'Zum Login?\')">Gast</a>'?><?
+	if(permissions.editor&&article){?>, <a href="/blog/editor?view=editor&id=<?=article.id?>">Bearbeiten</a><?}
+	else if(permissions.editor&&!article){?>, <a href=/blog/editor>Editor</a><?}
+?></footer>
+</body>
 </html>
