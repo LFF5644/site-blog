@@ -283,6 +283,7 @@ else if(input.action==="post-edit"){
 		}
 ?>		<input type=file name=file>
 		<p><textarea name=articleText oninput="textareaFitContent('articleText')" onfocus="textareaFitContent('articleText')"><?=article.articleText||''?></textarea></p>
+		<p>Settings:  <span title="Client Basierte Einstellung">Auto-Scrollen <input type=checkbox checked id=autoScroll form=""></span></p>
 		<p class=actions>Aktionen: 
 			<input type=submit value="Artikel zwischenspeichern<?=!isArticleSaved?' (ÜBERSCHREIBEN)':''?>" title="Speichert auf Server">
 			<input type=submit value="Vorschau<?=!isArticleSaved?' (ÜBERSCHREIBEN)':''?>" title="<?=!isArticleSaved?'ACHTUNG: Überschreibt den Artiekel im Zwischenspeicher!&#10;':''?>Zeigt eine vorschau des Artikels wie vorm ausdrucken eines Dokuments." onclick="document.getElementById('form').view.value='saved-preview';">
@@ -304,10 +305,25 @@ else if(input.action==="post-edit"){
 				form.view.value="editor";
 				form.submit();
 			});*/
+			let textareaHeight=0;
+			let scrollHeight=0;
 			function textareaFitContent(name){
+				if(!document.getElementById('autoScroll').checked) return;
 				const element=document.getElementById("form")[name];
-				element.style.height="auto";
-				element.style.height=element.scrollHeight+"px";
+				
+				if(textareaHeight!==element.scrollHeight){
+					//console.log("textareaHeightHeight changed,",textareaHeight);
+					element.style.height="auto";
+					textareaHeight=element.scrollHeight>window.screen.height?(window.screen.height-100):element.scrollHeight;
+					element.style.height=textareaHeight+"px";
+					element.scrollTop=element.scrollHeight;
+
+					window.scrollTo({
+						top: element.offsetTop+element.scrollHeight,
+						behavior: "auto", // no animation
+					});
+					if(window.screen.height!==window.screen.availHeight) alert(`height: ${window.screen.height}\navailHeight: ${window.screen.availHeight}`);
+				}
 			}
 		</script>
 	</form>
