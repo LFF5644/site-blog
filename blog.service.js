@@ -134,16 +134,31 @@ this.executeBlogArticleCode=async(article)=>{
 	let index=0;
 	let staticData=true;
 	let articleTextFunction="(async function(article,data,globals,log){let res='';";
+	const formartStatic=text=>(text
+		.split("\n").join("<br>")
+		.split("\\").join("\\\\")
+		.split("\r").join("")
+		//.split('"').join('\"') trying to fix err
+		.split("'").join("\'")
+		.split("    ").join("&#09;")
+		.split("\t").join("&#09;")
+	);
+	const formartDynamic=text=>(
+		string_codify(
+			text
+		)
+	);
+
 	while(index<rawArticleText.length){
 		const text=rawArticleText.substring(index);
 		if(staticData){ // now we in text chunk
 			const indexEnd=text.indexOf("<?");
 			if(indexEnd===-1){
-				articleTextFunction+="res+='"+string_codify(text)+"';";
+				articleTextFunction+="res+='"+formartStatic(text)+"';";
 				index=rawArticleText.length;
 			}
 			else{
-				articleTextFunction+="res+='"+string_codify(text.substring(0,indexEnd))+"';";
+				articleTextFunction+="res+='"+formartStatic(text.substring(0,indexEnd))+"';";
 				staticData=false;
 				index+=indexEnd+2;
 			}
@@ -153,15 +168,15 @@ this.executeBlogArticleCode=async(article)=>{
 			if(text.substring(0,1)==="=") dynamicValue=true;
 			const indexEnd=text.indexOf("?>");
 			if(indexEnd===-1){
-				if(!dynamicValue) articleTextFunction+=string_codify(text);
+				if(!dynamicValue) articleTextFunction+=formartDynamic(text);
 				else if(dynamicValue) articleTextFunction+="res+=''+"+text.substring(1)+";";
-				articleTextFunction+='res+="<hr>HEY YOU FORGOT ?&gt; at the end!");';
+				articleTextFunction+='res+="<hr style=color:red><b>HEY YOU FORGOT ?&gt; at the end!</b>");';
 				index=rawArticleText.length;
 				staticData=true;
 			}
 			else{
 				if(!dynamicValue) articleTextFunction+=text.substring(0,indexEnd);
-				else if(dynamicValue) articleTextFunction+="res+="+text.substring(1,indexEnd)+";";
+				else if(dynamicValue) articleTextFunction+="res+=''+"+text.substring(1,indexEnd)+";";
 				index+=indexEnd+2;
 				staticData=true;
 			}
@@ -199,6 +214,23 @@ this.executeBlogArticleCode=async(article)=>{
 				result+=`<img loading=lazy class=media src=${src}${data.alt?(' alt='+alt):''}>`;
 				if(clickable) result+=`</a>`;
 				result+="</p>";
+				return result;
+			}
+			else if(type==="link"){
+				const dataTemplate={
+					download: null,
+					openBlank: true,
+				};
+				let [href,text,data]=args;
+				data={...dataTemplate,...data};
+				let {download,openBlank}=data;
+				let result='<a ';
+				href=href.split("$MEDIA/").join(media);
+				href=href.includes(" ")||href.includes("=")?('"'+href+'"'):href;
+				if(download) download=download.includes(" ")||download.includes("=")?('"'+download+'"'):'';
+				if(openBlank) openBlank=" target=_blank";
+				result+=`href=${href}${openBlank?openBlank:''}${download?(" download="+download):''}>`;
+				result+=text+"</a>";
 				return result;
 			}
 		}
