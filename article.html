@@ -82,6 +82,15 @@
 	<p class=articleDescription><?=article.description?></p>
 	<div class=articleText><?=await blog.executeBlogArticleCode(article)?></div>
 <?
+		const articleVisitors=blog.getVisitors(article.id);
+		blog.visitorAdd({
+			articleId: article.id,
+			username: user?user.username:null,
+			ip: input.ip,
+			browser: input.user_agent,
+			bot: input.bot,
+		});
+		//log("Visitors of '"+article.title+"': "+articleVisitors);
 	}
 	else if(article===null){
 		const articles=blog.getArticles();
@@ -104,6 +113,7 @@
 ?><footer>Hallo <?=user?(user.nickname?user.nickname:user.username):'<a href=/account title=Anmelden onclick="return confirm(\'Zum Login?\')">Gast</a>'?><?
 	if(permissions.editor&&article){?>, <a href="/blog/editor?view=editor&id=<?=article.id?>">Bearbeiten</a><?}
 	else if(permissions.editor&&!article){?>, <a href=/blog/editor>Editor</a><?}
+	if(article){?>, <span title="Views werden noch nicht gespeichert also wird diese zahl gerne mal RESETET werden. das feature befindet sich außerdem in der überwachungs phase. danke fürs lesen/verständnis ;)">Views (BETA): <b title="davon Heute: <?=blog.getVisitors(article.id,1e3*60*60*24)?>"><?=blog.getVisitors(article.id)?></b></span><?}
 ?></footer>
 </body>
 </html>

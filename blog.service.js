@@ -15,6 +15,9 @@ const {
 	tofsStr,
 }=globals.functions;
 
+const VISITOR_EXPIRE_TIME=1e3*60*60*5; // time that the visitor is in the visitors array (5H)
+const VISITOR_ONLINE_TIME=1e3*60*10; // time that the visitor have to read the blog unil he counts as new visitor (10M)
+
 let isStarting=false;
 
 const getDateUpsideDown=(date=new Date(),sub=".")=> date.getFullYear()+sub+String(date.getMonth()+1).padStart(2,0)+sub+String(date.getDate()).padStart(2,0);
@@ -309,11 +312,79 @@ this.addFileToArticle=async(id,name,buffer)=>{
 	this.saveRequired=true;
 	return article.files;
 }
+this.visitorAdd=({
+	articleId,
+	username, // null if user not logined
+	ip, bot,
+	browser, // user_agent
+})=>{
+	if(!this.existArticle(articleId)) throw new Error("visitorAdd: articleId not exists: "+articleId);
+	//if(username==="lff"||bot) return; // to reduce visitors ;)
+	const now=Date.now();
+	const visitorObject=[now,articleId,username,ip,browser];
+
+	let remove=[];
+	let visitorOnline=false;
+	let foundVisitor=false;
+	for(let index=0; index<this.visitors.length; index+=1){
+		const item=this.visitors[index];
+		let removed=false;
+		const visitorAge=now-item[0];
+		if(visitorAge>VISITOR_EXPIRE_TIME){
+			if(!removed) remove.push(item[0]);
+			this.visitorCounters[item[1]]=(this.visitorCounters[item[1]]||0)+1; // adding one more visitor for artice
+			removed=true;
+			log("adding visitor permernently for: "+articleId);
+		}
+		if( // Complicated, but checks for existing visitor.
+			item[1]===articleId&&
+			item[2]===username&&
+			(
+				username&&item[2]||
+				(
+					item[2]===null&&
+					item[3]===ip&&
+					item[4]===browser
+				)
+			)
+		){
+			foundVisitor=true;
+			//log("you are: "+item.join("; "));
+			if(visitorAge<VISITOR_ONLINE_TIME){
+				if(!removed) remove.push(item[0]);
+				visitorOnline=true;
+				removed=true;
+			}
+		}
+	}
+	//log("removing: "+remove.length);
+	this.visitors=this.visitors.filter(item=>!remove.some(i=>i===item[0])); // removes all visitors in "remove"
+	if(foundVisitor&&visitorOnline){
+		this.visitors.push(visitorObject);
+		log("online visitor, for: "+articleId);
+	}
+	else if(foundVisitor&&!visitorOnline){
+		log("visitor is offline, for: "+articleId);
+	}
+	else if(!foundVisitor){
+		this.visitors.push(visitorObject);
+		log("new visitor for: "+articleId);
+	}
+};
+this.getVisitors=(id,time)=>{ // returns number of visitors of an article.
+	if(!this.existArticle(id)) throw new Error("getVisitors: articleId: "+id+" not exists!");
+	if(!time||time>VISITOR_EXPIRE_TIME) return (this.visitorCounters[id]||0)+this.visitors.filter(item=>item[1]===id).length;
+	const now=Date.now();
+	return this.visitors.filter(item=>item[1]===id&&(now-item[0])<time).length;
+}
 
 this.start=async()=>{
 	this.articles=[];
 	this.savedArticle={};
 	this.articlesFunctionCache=[];
+	this.visitors=[];
+	this.visitorCounters={};
+	this.serviceUptime=Date.now();
 	isStarting=true;
 
 	await createDirAsync("data/blog"); // erstellen des "blog" ordners im daten speicher!
@@ -326,8 +397,9 @@ this.start=async()=>{
 	isStarting=false; // service started!
 }
 this.save=async required=>{
-	if(isStarting){
-		log("Service is still starting DONT SAVE!!");
+	const now=Date.now();
+	if(isStarting||now-this.serviceUptime<1e3*10){
+		log("Service is still starting DONT SAVE!! or service uptime is to low!");
 		return;
 	}
 	if(this.saveRequired===true||required===true){
@@ -341,4 +413,5 @@ this.save=async required=>{
 this.stop=async()=>{
 	clearInterval(this.saveInterval);
 	await this.save(true);
+	this.serviceUptime=null;
 }
