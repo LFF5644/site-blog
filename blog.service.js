@@ -27,18 +27,20 @@ const excludeTemplate=(object,template)=>Object.fromEntries(Object.entries(objec
 const loadBlogArticlesFile=async()=>{
 	log("Load: "+blogArticlesFile);
 	const articles=await readJsonFileAsync(blogArticlesFile);
+	//console.log(articles);
 	if(!articles) this.articles=[];
 	else this.articles=articles.map(this.getArticleTemplate);
 }
 const saveBlogArticlesFile=()=>{
 	const template=this.articleTemplate;
-	let articles=this.getArticles().map(item=>excludeTemplate(item,template));
+	let articles=this.getArticles().map(item=>({...excludeTemplate(item,template),articleText:undefined}));
 	if(articles.length===0){
 		log("dont save empty file: "+blogArticlesFile);
-		return rmFileAsync(blogArticlesFile);
+		//return rmFileAsync(blogArticlesFile);
 	}
 	else{
 		log("Save: "+blogArticlesFile);
+		//console.log(articles);
 		return writeJsonFileAsync(blogArticlesFile,articles);
 	}
 }
@@ -79,6 +81,7 @@ this.createArticle=async(article)=>{
 		article.articleFile=defaultBlogFileName;
 		await writeFileAsync(blogArticlesDir+article.folder+"/"+defaultBlogFileName,article.articleText);
 		log("written: "+blogArticlesDir+article.folder+"/"+defaultBlogFileName,article.articleText+" with "+article.articleText.length/1024+" KB");
+		article.articleText=undefined;
 		delete article.articleText;
 	}
 	log("NEW ARTICLE CREATED: "+article.title+", files: "+article.files.length+", visibility: "+article.visibility);
@@ -173,7 +176,7 @@ this.executeBlogArticleCode=async(article)=>{
 			if(indexEnd===-1){
 				if(!dynamicValue) articleTextFunction+=formartDynamic(text);
 				else if(dynamicValue) articleTextFunction+="res+=''+"+text.substring(1)+";";
-				articleTextFunction+='res+="<hr style=color:red><b>HEY YOU FORGOT ?&gt; at the end!</b>");';
+				articleTextFunction+='res+="<hr style=color:red><b style=color:red>HEY YOU FORGOT ?&gt; at the end!</b>");';
 				index=rawArticleText.length;
 				staticData=true;
 			}
@@ -308,9 +311,9 @@ this.addFileToArticle=async(id,name,buffer)=>{
 	await createDirAsync(blogArticlesDir+article.folder);
 	await writeFileAsync(blogArticlesDir+article.folder+"/"+name,buffer);
 	article.files.push(name);
-	this.articles[index]=article;
+	this.articles[index].files.push(name);
 	this.saveRequired=true;
-	return article.files;
+	return this.articles[index].files;
 }
 this.visitorAdd=({
 	articleId,

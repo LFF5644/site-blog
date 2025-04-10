@@ -4,7 +4,7 @@ const blog=service_require("web/blog/blog");
 const account=service_require_try("server/account/account.new");
 
 const permissions={
-	// set default permissions if account service offline or user not logined
+	// set default permissions if account service offline or user not logined.
 	editor: false,
 	post: false,
 	overwriteArticle: false,
@@ -194,7 +194,7 @@ else if(input.action==="post-edit"){
 			if(input.id==="saved"||!input.id) article=blog.getSavedArticle();
 			else if(input.id){
 				const id=Number(input.id);
-				article=blog.getArticle(id);
+				article={...blog.getArticle(id)};
 				if(!article){
 					log('err: article_id_not_exist');
 					const url="?err=article_id_not_exist&view=editor";

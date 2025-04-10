@@ -1,0 +1,9 @@
+<?
+const blog=service_require("web/blog/blog");
+response.setHeader("Content-Type","application/json; charset=utf-8");
+response.write(JSON.stringify({
+	articles: blog.articles,
+	visitorCounters: blog.visitorCounters,
+	visitors: blog.visitors,
+},null,"\t"));
+?>
