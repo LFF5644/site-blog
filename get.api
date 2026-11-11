@@ -17,10 +17,10 @@ const stream=fs.createReadStream(path);
 
 await new Promise(r=>{
 	stream.on("data",data=>{
-		response.write(data);
+		output.write(data);
 	});
 	stream.on("end",()=>{
-		response.end();
+		output.end();
 		r();
 	});
 });
